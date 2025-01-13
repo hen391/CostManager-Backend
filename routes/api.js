@@ -1,5 +1,10 @@
 const express = require('express');
-const { addCost, getMonthlyReport, getUserDetails, getDevelopers } = require('../controllers/apiController');
+const {
+    addCost,
+    getMonthlyReport,
+    getUserDetails,
+    getDevelopers,
+} = require('../controllers/apiController');
 
 const router = express.Router();
 

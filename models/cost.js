@@ -8,5 +8,4 @@ const CostSchema = new mongoose.Schema({
     date: { type: Date, required: true },
 });
 
-const Cost = mongoose.model('Cost', CostSchema);
-module.exports = Cost;
+module.exports = mongoose.model('Cost', CostSchema);
