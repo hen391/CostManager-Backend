@@ -1,10 +1,10 @@
 const express = require("express");
 const {
-  addCost,
-  getMonthlyReport,
-  getUserDetails,
-  getDevelopers,
-  addUser,
+    addCost,
+    getMonthlyReport,
+    getUserDetails,
+    getDevelopers,
+    addUser,
 } = require("../controllers/api_controller");
 
 const router = express.Router();
