@@ -1,16 +1,31 @@
 const Cost = require('../models/cost');
 const User = require('../models/user');
 
-//Add new user
+// Add a New User
 exports.addUser = async (req, res) => {
     try {
         const { id, first_name, last_name, birthday, marital_status } = req.body;
 
+        // Validate input
         if (!id || !first_name || !last_name || !birthday || !marital_status) {
             return res.status(400).json({ error: 'All fields are required' });
         }
 
-        const newUser = new User({ id, first_name, last_name, birthday, marital_status });
+        // Check if user already exists
+        const existingUser = await User.findOne({ id });
+        if (existingUser) {
+            return res.status(400).json({ error: 'User already exists' });
+        }
+
+        // Create new user
+        const newUser = new User({
+            id,
+            first_name,
+            last_name,
+            birthday: new Date(birthday), // Ensure it's a valid date
+            marital_status
+        });
+
         await newUser.save();
         res.status(201).json(newUser);
     } catch (err) {
@@ -18,23 +33,19 @@ exports.addUser = async (req, res) => {
     }
 };
 
-// Add a new cost
+// Add Cost Item
 exports.addCost = async (req, res) => {
     try {
         const { userId, description, sum, category, date } = req.body;
 
-        // Validate input
         if (!userId || !description || !sum || !category) {
             return res.status(400).json({ error: 'All fields are required' });
         }
 
-        // Check if the user exists
-        const userExists = await User.findOne({ id: userId });
-        if (!userExists) {
-            return res.status(404).json({ error: 'User not found' });
+        if (!['food', 'health', 'housing', 'sport', 'education'].includes(category)) {
+            return res.status(400).json({ error: `Invalid category. Allowed categories: food, health, housing, sport, education.` });
         }
 
-        // Create and save the new cost
         const newCost = new Cost({
             userId,
             description,
@@ -46,79 +57,71 @@ exports.addCost = async (req, res) => {
         await newCost.save();
         res.status(201).json(newCost);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Server Error:', err);
+
+        // ✅ Catch validation errors and return 400 instead of 500
+        if (err.name === 'ValidationError') {
+            return res.status(400).json({ error: err.message });
+        }
+
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 };
 
-// Get monthly report
+// Get Monthly Report (Grouped by Category)
 exports.getMonthlyReport = async (req, res) => {
     try {
         const { userId, month, year } = req.query;
 
-        // Validate input
         if (!userId || !month || !year) {
             return res.status(400).json({ error: 'userId, month, and year are required' });
-        }
-
-        // Ensure valid month and year
-        if (month < 1 || month > 12 || year < 1900 || year > new Date().getFullYear()) {
-            return res.status(400).json({ error: 'Invalid month or year' });
         }
 
         const startDate = new Date(`${year}-${month}-01`);
         const endDate = new Date(startDate);
         endDate.setMonth(endDate.getMonth() + 1);
 
-        // Find costs for the user within the date range
-        const costs = await Cost.find({
-            userId,
-            date: { $gte: startDate, $lt: endDate },
-        });
+        const costs = await Cost.aggregate([
+            { $match: { userId, date: { $gte: startDate, $lt: endDate } } },
+            { $group: { _id: "$category", total: { $sum: "$sum" }, items: { $push: "$$ROOT" } } }
+        ]);
 
-        res.json({ userId, costs });
+        res.json(costs);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: err.message });
     }
 };
 
-// Get user details
+// Get User Details
 exports.getUserDetails = async (req, res) => {
     try {
         const { id } = req.params;
-
-        // Find the user by ID
         const user = await User.findOne({ id });
+
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Calculate the total cost for the user
         const totalCost = await Cost.aggregate([
             { $match: { userId: id } },
-            { $group: { _id: null, total: { $sum: '$sum' } } },
+            { $group: { _id: null, total: { $sum: '$sum' } } }
         ]);
 
-        const total = totalCost.length > 0 ? totalCost[0].total : 0;
-
-        // Return the user's details
         res.json({
             first_name: user.first_name,
             last_name: user.last_name,
             id: user.id,
-            total,
+            total: totalCost.length > 0 ? totalCost[0].total : 0
         });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: err.message });
     }
 };
 
-// Get developers info
+// Get Developers Info
 exports.getDevelopers = (req, res) => {
     res.json([
         { first_name: 'Hen', last_name: 'Hazum' },
-        { first_name: 'Yuval', last_name: 'Betito' },
+        { first_name: 'Yuval', last_name: 'Betito' }
     ]);
 };

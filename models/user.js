@@ -5,7 +5,7 @@ const UserSchema = new mongoose.Schema({
     first_name: { type: String, required: true },
     last_name: { type: String, required: true },
     birthday: { type: Date, required: true },
-    marital_status: { type: String, required: true },
+    marital_status: { type: String, required: true }
 });
 
-module.exports = mongoose.model('User', UserSchema,'users');
+module.exports = mongoose.model('User', UserSchema, 'users');
